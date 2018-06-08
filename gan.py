@@ -16,8 +16,8 @@ np.random.seed(3)
 
 
 # training params
-batch_size = 100
-epochs = 1000
+batch_size = 25
+epochs = 5000
 
 # loss function
 loss_fx = torch.nn.BCELoss()
@@ -59,7 +59,7 @@ class Generator(torch.nn.Module):
                 torch.nn.Linear(512, 1024),
                 torch.nn.ReLU(),
                 torch.nn.Linear(1024, n_out),
-                torch.nn.ReLU()
+                torch.nn.Sigmoid()
         )
 
 
