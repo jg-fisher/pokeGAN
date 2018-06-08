@@ -16,7 +16,7 @@ np.random.seed(3)
 
 
 # training params
-batch_size = 25
+batch_size = 15
 epochs = 5000
 
 # loss function
@@ -46,18 +46,18 @@ def images_to_vectors(data, reverse=False):
 class Generator(torch.nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
-        n_features = 1000
+        n_features = 5000
         n_out = 27648
         
         self.model = torch.nn.Sequential(
                 torch.nn.Linear(n_features, 128),
-                torch.nn.ReLU(),
+                torch.nn.LeakyReLU(),
                 torch.nn.Linear(128, 256),
-                torch.nn.ReLU(),
+                torch.nn.LeakyReLU(),
                 torch.nn.Linear(256, 512),
-                torch.nn.ReLU(),
+                torch.nn.LeakyReLU(),
                 torch.nn.Linear(512, 1024),
-                torch.nn.ReLU(),
+                torch.nn.LeakyReLU(),
                 torch.nn.Linear(1024, n_out),
                 torch.nn.Sigmoid()
         )
@@ -68,7 +68,7 @@ class Generator(torch.nn.Module):
         return img
 
     def noise(self, s):
-       x = Variable(torch.randn(s, 1000))
+       x = Variable(torch.randn(s, 5000))
        return x
 
 
@@ -81,9 +81,9 @@ class Discriminator(torch.nn.Module):
 
         self.model = torch.nn.Sequential(
                 torch.nn.Linear(n_features, 512),
-                torch.nn.ReLU(),
+                torch.nn.LeakyReLU(),
                 torch.nn.Linear(512, 256),
-                torch.nn.ReLU(),
+                torch.nn.LeakyReLU(),
                 torch.nn.Linear(256, n_out),
                 torch.nn.Sigmoid()
         )
@@ -101,7 +101,7 @@ def train_discriminator(discriminator, optimizer, real_data, fake_data):
 
     # train on real
     # get prediction
-    pred_real = discriminator(real_data)
+    pred_real = discriminator(real_data * 2. - 1.)
 
     # calculate loss
     error_real = loss_fx(pred_real, Variable(torch.ones(N, 1)))
@@ -165,6 +165,9 @@ for epoch in range(epochs):
          # show real image
          cv2.imshow('REAL', np.array(batch[0]))
 
+         # normalize batch
+         #batch = batch * 2. - 1.
+
          # REAL
          real_images = Variable(images_to_vectors(batch)).float()
 
@@ -191,7 +194,7 @@ for epoch in range(epochs):
          test_img = np.array(images_to_vectors(generator(fake_data), reverse=True).detach())
          test_img = test_img[0, :, :, :]
          test_img = np.moveaxis(test_img, 0, 2)
-         print(test_img.shape)
+         #test_img = (test_img + 1.) / 2.
 
          print('EPOCH: {0}, BATCH: {3}, D error: {1}, G error: {2}'.format(epoch, d_error, g_error, n_batch))
 
