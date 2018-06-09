@@ -173,7 +173,7 @@ discriminator = Discriminator()
 
 # optimizers
 g_optimizer = torch.optim.Adam(generator.parameters(), lr=0.0002)
-d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.00002)
+d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.0002)
 
 # training loop
 for epoch in range(epochs):
