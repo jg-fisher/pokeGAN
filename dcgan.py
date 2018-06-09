@@ -10,11 +10,18 @@ import os
 import cv2 
 from collections import deque
 
+"""
+NOTES TO SELF:
+
+ngf || nf =====> number of generator features
+"""
+
+
 # reproducibility
 np.random.seed(3)
 
 # training params
-batch_size = 15
+batch_size = 128
 epochs = 5000
 
 # loss function
@@ -29,6 +36,7 @@ for img in os.listdir('pokemon_images'):
             pass
         else:
             pokemon_image = cv2.resize(pokemon_image, (64, 64))
+            pokemon_image = np.moveaxis(pokemon_image, 2, 0)
             X.append(pokemon_image)
 
 # data loader for processing in batches
@@ -57,9 +65,11 @@ class Generator(torch.nn.Module):
                 torch.nn.ConvTranspose2d(d*4, d*2, 4, 2, 1),
                 torch.nn.BatchNorm2d(d*2),
                 torch.nn.LeakyReLU(),
+                torch.nn.ConvTranspose2d(d*2, d, 4, 2, 1),
                 torch.nn.BatchNorm2d(d),
-                torch.nn.ConvTranspose2d(d, 1, 4, 2, 1),
-                torch.nn.Sigmoid()
+                torch.nn.LeakyReLU(),
+                torch.nn.ConvTranspose2d(d, 3, 4, 2, 1),
+                torch.nn.Tanh()
         )
 
 
@@ -68,8 +78,8 @@ class Generator(torch.nn.Module):
         return img
 
     def noise(self, s):
-       x = Variable(torch.randn(s, 102400))
-       x.view(100, 1024)
+       #x = Variable(torch.randn(s, 100))
+       x = torch.randn((5*5, 100)).view(-1, 100, 1, 1)
        return x
 
 
@@ -80,7 +90,7 @@ class Discriminator(torch.nn.Module):
         d = 128
 
         self.model = torch.nn.Sequential(
-                torch.nn.Conv2d(1, d, 4, 2, 1),
+                torch.nn.Conv2d(3, d, 4, 2, 1),
                 torch.nn.LeakyReLU(.2),
                 torch.nn.Conv2d(d, d*2, 4, 2, 1),
                 torch.nn.BatchNorm2d(d*2),
@@ -103,15 +113,18 @@ class Discriminator(torch.nn.Module):
 
 # discriminator training
 def train_discriminator(discriminator, optimizer, real_data, fake_data):
-    N = real_data.size(0)
+    Nr = real_data.size(0)
+    Nf = fake_data.size(0)
     optimizer.zero_grad()
 
     # train on real
     # get prediction
+
+    # figure out how to shape the input data to the discriminator
     pred_real = discriminator(real_data)
 
     # calculate loss
-    error_real = loss_fx(pred_real, Variable(torch.ones(N, 1)))
+    error_real = loss_fx(pred_real, Variable(torch.ones(Nr, 1)))
     
     # calculate gradients
     error_real.backward()
@@ -121,7 +134,7 @@ def train_discriminator(discriminator, optimizer, real_data, fake_data):
     pred_fake = discriminator(fake_data)
 
     # calculate loss
-    error_fake = loss_fx(pred_fake, Variable(torch.zeros(N, 0)))
+    error_fake = loss_fx(pred_fake, Variable(torch.zeros(Nf, 0)))
 
     # calculate gradients
     error_fake.backward()
@@ -167,18 +180,15 @@ for epoch in range(epochs):
      for n_batch, batch in enumerate(data_loader, 0):
          N = batch.size(0)
 
-         # Train Discriminator
-
-         # show real image
-         cv2.imshow('REAL', np.array(batch[0]))
-
          # REAL
-         real_images = Variable(images_to_vectors(batch)).float()
+         #print('real image size', batch[0].size())
+         real_images = Variable(batch).float()
 
          # FAKE
          fake_images = generator(generator.noise(N)).detach()
+         #print('generated image size', fake_images[0].size())
 
-         # TRAIN
+         # get error and train discriminator
          d_error, d_pred_real, d_pred_fake = train_discriminator(
                  discriminator,
                  d_optimizer,
@@ -186,12 +196,10 @@ for epoch in range(epochs):
                  fake_images
          )
 
-         # Train Generator
-
          # generate noise
          fake_data = generator.noise(N)
 
-         # get error based on discriminator
+         # get error and train generator
          g_error = train_generator(generator, g_optimizer, fake_data)
 
          # convert generator output to image and preprocess to show
