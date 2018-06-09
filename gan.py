@@ -17,7 +17,7 @@ np.random.seed(3)
 
 # training params
 batch_size = 15
-epochs = 100
+epochs = 5000
 
 # loss function
 loss_fx = torch.nn.BCELoss()
