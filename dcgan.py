@@ -18,7 +18,7 @@ ngf || nf =====> number of generator features
 
 
 # reproducibility
-np.random.seed(3)
+np.random.seed(7)
 
 # training params
 batch_size = 128
@@ -41,6 +41,7 @@ for img in os.listdir('pokemon_images'):
 
 # data loader for processing in batches
 data_loader = DataLoader(X, batch_size=batch_size)
+print(len(X))
 
 # covert output vectors to images if flag is true, else input images to vectors
 def images_to_vectors(data, reverse=False):
@@ -56,18 +57,18 @@ class Generator(torch.nn.Module):
         d = 128
         
         self.model = torch.nn.Sequential(
-                torch.nn.ConvTranspose2d(100, d*8, 4, 1, 0),
+                torch.nn.ConvTranspose2d(1000, d*8, 4, 1, 0),
                 torch.nn.BatchNorm2d(d*8),
-                torch.nn.LeakyReLU(),
+                torch.nn.ReLU(),
                 torch.nn.ConvTranspose2d(d*8, d*4, 4, 2, 1),
                 torch.nn.BatchNorm2d(d*4),
-                torch.nn.LeakyReLU(),
+                torch.nn.ReLU(),
                 torch.nn.ConvTranspose2d(d*4, d*2, 4, 2, 1),
                 torch.nn.BatchNorm2d(d*2),
-                torch.nn.LeakyReLU(),
+                torch.nn.ReLU(),
                 torch.nn.ConvTranspose2d(d*2, d, 4, 2, 1),
                 torch.nn.BatchNorm2d(d),
-                torch.nn.LeakyReLU(),
+                torch.nn.ReLU(),
                 torch.nn.ConvTranspose2d(d, 3, 4, 2, 1),
                 torch.nn.Tanh()
         )
@@ -79,7 +80,7 @@ class Generator(torch.nn.Module):
 
     def noise(self, s):
        #x = Variable(torch.randn(s, 100))
-       x = torch.randn((5*5, 100)).view(-1, 100, 1, 1)
+       x = torch.randn((5*5, 1000)).view(-1, 1000, 1, 1)
        return x
 
 
@@ -102,6 +103,7 @@ class Discriminator(torch.nn.Module):
                 torch.nn.LeakyReLU(),
                 torch.nn.BatchNorm2d(d*8),
                 torch.nn.Conv2d(d*8, 1, 4, 1, 0),
+                torch.nn.Dropout2d(.5),
                 torch.nn.Sigmoid()
         )
 
@@ -172,7 +174,7 @@ generator = Generator()
 discriminator = Discriminator()
 
 # optimizers
-g_optimizer = torch.optim.Adam(generator.parameters(), lr=0.0002)
+g_optimizer = torch.optim.Adam(generator.parameters(), lr=0.0005)
 d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.0002)
 
 # training loop
