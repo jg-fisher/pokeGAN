@@ -195,19 +195,32 @@ if __name__ == '__main__':
     # .0005 glr .01 dlr seems to work well
     g_optimizer = torch.optim.Adam(generator.parameters(), lr=0.0005)
     d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.01)
+
+    # generator replay buffer
+    replay_buffer = deque(maxlen=26)
     
     # training loop
     for epoch in range(epochs):
          for n_batch, batch in enumerate(data_loader, 0):
              N = batch.size(0)
     
-             # REAL
-             #print('real image size', batch[0].size())
              real_images = Variable(batch).float()
-    
-             # FAKE
              fake_images = generator(generator.noise(N)).detach()
-             #print('generated image size', fake_images[0].size())
+
+             # add to replay buffer
+             replay_buffer.append((real_images, fake_images))
+              
+             # additional training for discriminator on replay buffer every couple epochs
+             if n_batch % 6 == 0 and len(replay_buffer) > 0:
+                 buffer_selection = replay_buffer[np.random.choice(len(replay_buffer))]
+                 print('Trained on replay buffer..')
+                 _, _, _, = train_discriminator(
+                         discriminator,
+                         d_optimizer,
+                         buffer_selection[0],
+                         buffer_selection[1]
+                 )
+
     
              # get error and train discriminator
              d_error, d_pred_real, d_pred_fake = train_discriminator(
@@ -228,7 +241,7 @@ if __name__ == '__main__':
              test_img = test_img[0, :, :, :]
              test_img = np.moveaxis(test_img, 0, 2)
     
-             print('EPOCH: {0}, BATCH: {3}, D error: {1}, G error: {2}'.format(epoch, d_error, g_error, n_batch))
+             print('EPOCH: {0}, BATCH: {1} ====> D_ERROR: {2:.6f}, G_ERROR: {3:.6f}'.format(epoch, n_batch, d_error, g_error))
 
              # checkpoints images and weights
              checkpoint()
