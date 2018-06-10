@@ -70,6 +70,7 @@ class Generator(torch.nn.Module):
                 torch.nn.BatchNorm2d(d),
                 torch.nn.ReLU(),
                 torch.nn.ConvTranspose2d(d, 3, 4, 2, 1),
+                torch.nn.Dropout2d(.5),
                 torch.nn.Tanh()
         )
 
@@ -169,56 +170,73 @@ def train_generator(generator, optimizer, fake_data):
     return error
 
 
-# Instance of generator and discriminator
-generator = Generator()
-discriminator = Discriminator()
+def checkpoint():
+    # save image sample and generator weights
 
-# optimizers
-g_optimizer = torch.optim.Adam(generator.parameters(), lr=0.0005)
-d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.0002)
+    paths = [r'./dcgan_checkpoints', 'images', 'weights']
 
-# training loop
-for epoch in range(epochs):
-     for n_batch, batch in enumerate(data_loader, 0):
-         N = batch.size(0)
+    if not os.path.exists(paths[0]):
+       os.mkdir(paths[0])
+    if not os.path.exists('{0}/{1}'.format(paths[0], paths[1])):
+       os.mkdir('{0}/{1}'.format(paths[0], paths[1]))
+    if not os.path.exists('{0}/{1}'.format(paths[0], paths[2])):
+       os.mkdir('{0}/{1}'.format(paths[0], paths[2]))
 
-         # REAL
-         #print('real image size', batch[0].size())
-         real_images = Variable(batch).float()
-
-         # FAKE
-         fake_images = generator(generator.noise(N)).detach()
-         #print('generated image size', fake_images[0].size())
-
-         # get error and train discriminator
-         d_error, d_pred_real, d_pred_fake = train_discriminator(
-                 discriminator,
-                 d_optimizer,
-                 real_images,
-                 fake_images
-         )
-
-         # generate noise
-         fake_data = generator.noise(N)
-
-         # get error and train generator
-         g_error = train_generator(generator, g_optimizer, fake_data)
-
-         # convert generator output to image and preprocess to show
-         test_img = np.array(images_to_vectors(generator(fake_data), reverse=True).detach())
-         test_img = test_img[0, :, :, :]
-         test_img = np.moveaxis(test_img, 0, 2)
-
-         print('EPOCH: {0}, BATCH: {3}, D error: {1}, G error: {2}'.format(epoch, d_error, g_error, n_batch))
-
-         # show example of generated image
-         cv2.imshow('GENERATED', test_img)
-         if cv2.waitKey(1) & 0xFF == ord('q'):
-             break
+    cv2.imwrite(r'./dcgan_checkpoints/images/epoch-{0}_batch-{1}_sample.jpg'.format(epoch, n_batch), test_img)
+    torch.save(generator, r'./dcgan_checkpoints/weights/generator_epoch-{0}_batch-{1}.pth'.format(epoch, n_batch))
 
 
+if __name__ == '__main__':
+    # Instance of generator and discriminator
+    generator = Generator()
+    discriminator = Discriminator()
+    
+    # optimizers
+    # .0005 glr .01 dlr seems to work well
+    g_optimizer = torch.optim.Adam(generator.parameters(), lr=0.0005)
+    d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.01)
+    
+    # training loop
+    for epoch in range(epochs):
+         for n_batch, batch in enumerate(data_loader, 0):
+             N = batch.size(0)
+    
+             # REAL
+             #print('real image size', batch[0].size())
+             real_images = Variable(batch).float()
+    
+             # FAKE
+             fake_images = generator(generator.noise(N)).detach()
+             #print('generated image size', fake_images[0].size())
+    
+             # get error and train discriminator
+             d_error, d_pred_real, d_pred_fake = train_discriminator(
+                     discriminator,
+                     d_optimizer,
+                     real_images,
+                     fake_images
+             )
+    
+             # generate noise
+             fake_data = generator.noise(N)
+    
+             # get error and train generator
+             g_error = train_generator(generator, g_optimizer, fake_data)
+    
+             # convert generator output to image and preprocess to show
+             test_img = np.array(images_to_vectors(generator(fake_data), reverse=True).detach())
+             test_img = test_img[0, :, :, :]
+             test_img = np.moveaxis(test_img, 0, 2)
+    
+             print('EPOCH: {0}, BATCH: {3}, D error: {1}, G error: {2}'.format(epoch, d_error, g_error, n_batch))
 
-cv2.destroyAllWindows()
+             # checkpoints images and weights
+             checkpoint()
+    
+             # show example of generated image
+             cv2.imshow('GENERATED', test_img)
+             if cv2.waitKey(1) & 0xFF == ord('q'):
+                 break
 
-# save weights
-# torch.save('weights.pth')
+    
+    cv2.destroyAllWindows()
