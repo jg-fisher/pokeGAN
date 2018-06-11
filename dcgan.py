@@ -10,19 +10,12 @@ import os
 import cv2 
 from collections import deque
 
-"""
-NOTES TO SELF:
-
-ngf || nf =====> number of generator features
-"""
-
-
 # reproducibility
 np.random.seed(7)
 
 # training params
 batch_size = 128
-epochs = 5000
+epochs = 500
 
 # loss function
 loss_fx = torch.nn.BCELoss()
@@ -41,7 +34,6 @@ for img in os.listdir('pokemon_images'):
 
 # data loader for processing in batches
 data_loader = DataLoader(X, batch_size=batch_size)
-print(len(X))
 
 # covert output vectors to images if flag is true, else input images to vectors
 def images_to_vectors(data, reverse=False):
@@ -120,7 +112,7 @@ def train_discriminator(discriminator, optimizer, real_data, fake_data):
     Nf = fake_data.size(0)
     optimizer.zero_grad()
 
-    # train on real
+    # train on 500
     # get prediction
 
     # figure out how to shape the input data to the discriminator
@@ -193,11 +185,12 @@ if __name__ == '__main__':
     
     # optimizers
     # .0005 glr .01 dlr seems to work well
-    g_optimizer = torch.optim.Adam(generator.parameters(), lr=0.0005)
-    d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.01)
+    g_optimizer = torch.optim.Adam(generator.parameters(), lr=0.0002)
+    d_optimizer = torch.optim.Adam(discriminator.parameters(), lr=0.002)
 
     # generator replay buffer
     replay_buffer = deque(maxlen=26)
+    n_replay_train = 0
     
     # training loop
     for epoch in range(epochs):
@@ -212,8 +205,9 @@ if __name__ == '__main__':
               
              # additional training for discriminator on replay buffer every couple epochs
              if n_batch % 6 == 0 and len(replay_buffer) > 0:
+                 n_replay_train += 1
                  buffer_selection = replay_buffer[np.random.choice(len(replay_buffer))]
-                 print('Trained on replay buffer..')
+                 print('Training on replay buffer. Total replay trains: {}'.format(n_replay_train))
                  _, _, _, = train_discriminator(
                          discriminator,
                          d_optimizer,
